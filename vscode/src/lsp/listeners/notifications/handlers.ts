@@ -109,6 +109,10 @@ const textEditorDecorationDisposeHandler = (param: any) => {
 
 
 const telemetryEventHandler = (param: any) => {
+    // if(telemetryConstants.TELEMETRY_EVENTS.WORKSPACE_CHANGE_EVT === param?.name){
+    //     Telemetry.sendTelemetry(telemetryConstants.TELEMETRY_EVENTS.WORKSPACE_CHANGE_EVT, param?.properties)
+    //     return;
+    // } 
     const ls = globalState.getListener(param);
     if (ls) {
         for (const listener of ls) {
