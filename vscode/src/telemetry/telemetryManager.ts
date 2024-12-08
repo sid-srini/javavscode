@@ -13,12 +13,11 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 */
-import { Uri, window } from "vscode";
+import { window } from "vscode";
 import { TelemetryPrefs } from "./impl/telemetryPrefs";
 import { TelemetryEventQueue } from "./impl/telemetryEventQueue";
 import { TelemetryReporterImpl } from "./impl/telemetryReporterImpl";
-import { CacheService, TelemetryReporter } from "./types";
-import { CacheServiceImpl } from "./impl/cacheServiceImpl";
+import { TelemetryReporter } from "./types";
 import { LOGGER } from "../logger";
 import { ExtensionContextInfo } from "../extensionContextInfo";
 import { l10n } from "../localiser";
@@ -28,16 +27,10 @@ export class TelemetryManager {
     private extensionContextInfo: ExtensionContextInfo;
     private settings: TelemetryPrefs = new TelemetryPrefs();
     private reporter?: TelemetryReporter;
-    private cacheService?: CacheService;
     private telemetryRetryManager: TelemetryRetry = new TelemetryRetry()
 
     constructor(extensionContextInfo: ExtensionContextInfo) {
         this.extensionContextInfo = extensionContextInfo;
-    }
-
-    public setCacheService = (): void => {
-        const cachePath = Uri.joinPath(this.extensionContextInfo.getExtensionStorageUri(), "telemetry", "cache");
-        this.cacheService = new CacheServiceImpl(cachePath);
     }
 
     public isExtTelemetryEnabled = (): boolean => {
@@ -45,13 +38,9 @@ export class TelemetryManager {
     }
 
     public initializeReporter = (): void => {
-        if (!this.cacheService) {
-            this.setCacheService();
-        }
-
         const queue = new TelemetryEventQueue();
         this.extensionContextInfo.pushSubscription(this.settings.onDidChangeTelemetryEnabled());
-        this.reporter = new TelemetryReporterImpl(queue, this.telemetryRetryManager, this.cacheService!);
+        this.reporter = new TelemetryReporterImpl(queue, this.telemetryRetryManager);
 
         this.openTelemetryDialog();
     }

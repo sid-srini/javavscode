@@ -34,12 +34,12 @@ export class PostTelemetry {
 
     public post = async (events: BaseEvent<any>[]): Promise<TelemetryPostResponse> => {
         try {
-            LOGGER.log("Posting telemetry...");
+            LOGGER.debug("Posting telemetry...");
             const results = await Promise.allSettled(events.map(event => this.postEvent(event)));
-            LOGGER.log("Telemetry posted successfully...");
+
             return this.parseTelemetryResponse(events, results);
         } catch (err) {
-            LOGGER.error(`Error occurred while posting telemetry : ${(err as Error)?.message}`);
+            LOGGER.debug(`Error occurred while posting telemetry : ${(err as Error)?.message}`);
             throw err;
         }
     };
@@ -62,15 +62,13 @@ export class PostTelemetry {
     private parseTelemetryResponse = (events: BaseEvent<any>[], eventResponses: PromiseSettledResult<Response>[]): TelemetryPostResponse => {
         let success: TelemetryEventResponse[] = [], failures: TelemetryEventResponse[] = [];
         eventResponses.forEach((eventResponse, index) => {
-            let statusCode: number;
             const event = events[index];
             if (eventResponse.status === "rejected") {
                 failures.push({
                     event,
-                    statusCode: eventResponse.reason
+                    statusCode: -1
                 });
             } else {
-                statusCode = eventResponse.value.status;
                 success.push({
                     statusCode: eventResponse.value.status,
                     event

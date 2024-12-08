@@ -13,7 +13,10 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 */
+import { LOGGER } from "../../logger";
 import { AnonymousIdManager } from "../impl/AnonymousIdManager";
+import { cacheService } from "../impl/cacheServiceImpl";
+import { getHashCode } from "../utils";
 
 export interface BaseEventPayload {
     vsCodeId: string;
@@ -22,19 +25,41 @@ export interface BaseEventPayload {
 
 export abstract class BaseEvent<T> {
     protected _payload: T & BaseEventPayload;
+    protected _data: T
 
     constructor(public readonly NAME: string,
         public readonly ENDPOINT: string,
-        payload: T
+        data: T
     ) {
+        this._data = data;
         this._payload = {
             vsCodeId: AnonymousIdManager.machineId,
             vscSessionId: AnonymousIdManager.sessionId,
-            ...payload
+            ...data
         };
     }
 
     get getPayload(): T & BaseEventPayload {
         return this._payload;
+    }
+    
+    get getData(): T {
+        return this._data;
+    }
+
+    public onSuccessPostEventCallback = async (): Promise<void> => {
+        LOGGER.debug(`${this.NAME} sent successfully`);
+    }
+
+    public onFailPostEventCallback = async (): Promise<void> => {
+        LOGGER.debug(`${this.NAME} send failed`);
+    }
+
+    protected addEventToCache = (): void => {
+        const dataString = JSON.stringify(this.getData);
+        const calculatedHashVal = getHashCode(dataString);
+        const isAdded = cacheService.put(this.NAME, calculatedHashVal);
+ 
+        LOGGER.debug(`${this.NAME} added in cache ${isAdded ? "Successfully" : "Unsucessfully"}`);
     }
 }

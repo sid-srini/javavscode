@@ -25,4 +25,5 @@ export class ExtensionContextInfo {
   pushSubscription = (listener: Disposable) => this.context.subscriptions.push(listener);
   getExtensionId = () => this.context.extension.id;
   getPackageJson = () => this.context.extension.packageJSON;
+  getVscGlobalState = () => this.context.globalState;
 }

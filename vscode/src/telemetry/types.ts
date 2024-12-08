@@ -25,13 +25,9 @@ export interface TelemetryReporter {
 }
 
 export interface CacheService {
-    get(key: string): Promise<undefined | string>;
+    get(key: string): string | undefined;
 
-    put(key: string, value: string): Promise<boolean>;
-
-    getCachePath(): Uri;
-
-    isCacheDirExists(): Promise<boolean>;
+    put(key: string, value: string): boolean;
 }
 
 export interface TelemetryEventQueue {

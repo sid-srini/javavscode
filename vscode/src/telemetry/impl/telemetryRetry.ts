@@ -23,8 +23,8 @@ export class TelemetryRetry {
     private static readonly CONFIG: RetryConfig = {
         maxRetries: 6,
         baseCapacity: 256,
-        baseTimer: 5 * 1000,
-        maxDelayMs: 10 * 1000,
+        baseTimer: 5 * 1000, // in milliseconds
+        maxDelayMs: 100 * 1000, // in milliseconds
         backoffFactor: 2,
         jitterFactor: 0.25
     };
@@ -43,11 +43,11 @@ export class TelemetryRetry {
 
     public startTimer = (): void => {
         if (!this.callbackHandler) {
-            LOGGER.error("Callback handler is not set for telemetry timer");
+            LOGGER.debug("Callback handler is not set for telemetry retry mechanism");
             return;
         }
-        if(this.timeout){
-            LOGGER.warn("Overring current timeout");
+        if (this.timeout) {
+            LOGGER.debug("Overriding current timeout");
         }
         this.timeout = setInterval(this.callbackHandler, this.timePeriod);
     }
@@ -108,6 +108,10 @@ export class TelemetryRetry {
     }
 
     public eventsToBeEnqueuedAgain = (eventResponses: TelemetryPostResponse): BaseEvent<any>[] => {
+        eventResponses.success.forEach(res => {
+            res.event.onSuccessPostEventCallback();
+        });
+
         if (eventResponses.failures.length === 0) {
             this.resetQueueCapacity();
             this.resetTimerParameters();
@@ -122,11 +126,12 @@ export class TelemetryRetry {
                 this.triggeredDueToQueueOverflow ?
                     this.increaseQueueCapacity() :
                     this.increaseTimePeriod();
+                LOGGER.debug(`Queue max capacity size: ${this.queueCapacity}`);
+                LOGGER.debug(`Timer period: ${this.timePeriod}`);
             } else {
-                LOGGER.warn(`Cannot retry sending events: 
-                    ${eventResponses.failures.filter(eventRes =>
-                    (eventRes.statusCode > 0 && eventRes.statusCode <= 500))
-                }`);
+                eventResponses.failures.forEach(res => {
+                    res.event.onFailPostEventCallback();
+                });
             }
 
             return eventsToBeEnqueuedAgain;

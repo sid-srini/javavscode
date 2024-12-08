@@ -15,8 +15,8 @@
 */
 import { globalState } from "../../globalState";
 import { LOGGER } from "../../logger";
+import { cacheService } from "../impl/cacheServiceImpl";
 import { getEnvironmentInfo } from "../impl/enviromentDetails";
-import { CacheService } from "../types";
 import { getHashCode } from "../utils";
 import { BaseEvent } from "./baseEvent";
 
@@ -53,28 +53,28 @@ export interface StartEventData {
 export class ExtensionStartEvent extends BaseEvent<StartEventData> {
     public static readonly NAME = "startup";
     public static readonly ENDPOINT = "/start";
-        
-    constructor(payload: StartEventData){
+
+    constructor(payload: StartEventData) {
         super(ExtensionStartEvent.NAME, ExtensionStartEvent.ENDPOINT, payload);
     }
 
-    public static builder = async (cacheService: CacheService): Promise<ExtensionStartEvent | null> => {
-        const ENVIRONMENT_INFO = "environmentInfo";
-        const startEventData = getEnvironmentInfo(globalState.getExtensionContextInfo());
-        const value: string | undefined = await cacheService.get(ENVIRONMENT_INFO);
-        const envString = JSON.stringify(startEventData);
-        const calculatedHashVal = getHashCode(envString);
-
-        if (value != calculatedHashVal) {
-            const isAdded = await cacheService.put(ENVIRONMENT_INFO, envString);
-            LOGGER.log(`${ENVIRONMENT_INFO} added in cache ${isAdded ? "Successfully" : "Unsucessfully"}`);
-
-            const startEvent: ExtensionStartEvent = new ExtensionStartEvent(startEventData);
-
-            return startEvent;
-        }
-        LOGGER.log(`No change in ${ENVIRONMENT_INFO}`);
-        return null;
+    onSuccessPostEventCallback = async (): Promise<void> => {
+        this.addEventToCache();
     }
 
+    public static builder = async (): Promise<ExtensionStartEvent | null> => {
+        const startEventData = getEnvironmentInfo(globalState.getExtensionContextInfo());
+        const cachedValue: string | undefined = await cacheService.get(this.NAME);
+        const envString = JSON.stringify(startEventData);
+        const newValue = getHashCode(envString);
+
+        if (cachedValue != newValue) {
+            const startEvent: ExtensionStartEvent = new ExtensionStartEvent(startEventData);
+            return startEvent;
+        }
+
+        LOGGER.debug(`No change in start event`);
+        
+        return null;
+    }
 }

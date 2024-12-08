@@ -15,7 +15,7 @@
 */
 import { getCurrentUTCDateInSeconds } from "../utils";
 import { TelemetryEventQueue } from "./telemetryEventQueue";
-import { CacheService, TelemetryReporter } from "../types";
+import { TelemetryReporter } from "../types";
 import { LOGGER } from "../../logger";
 import { isError } from "../../utils";
 import { BaseEvent } from "../events/baseEvent";
@@ -33,22 +33,24 @@ export class TelemetryReporterImpl implements TelemetryReporter {
     constructor(
         private queue: TelemetryEventQueue,
         private retryManager: TelemetryRetry,
-        private cacheService: CacheService,
     ) {
         this.retryManager.registerCallbackHandler(this.sendEvents);
     }
 
     public startEvent = async (): Promise<void> => {
-        const extensionStartEvent = await ExtensionStartEvent.builder(this.cacheService);
+        const extensionStartEvent = await ExtensionStartEvent.builder();
         if(extensionStartEvent != null){
             this.addEventToQueue(extensionStartEvent);
+            LOGGER.debug(`Start event enqueued: ${extensionStartEvent.getPayload}`);
         } 
     }
 
     public closeEvent = (): void => {
+
         const extensionCloseEvent = ExtensionCloseEvent.builder(this.activationTime);
         this.addEventToQueue(extensionCloseEvent);
 
+        LOGGER.debug(`Close event enqueued: ${extensionCloseEvent.getPayload}`);
         this.sendEvents();
     }
 
@@ -56,6 +58,7 @@ export class TelemetryReporterImpl implements TelemetryReporter {
         if (!this.disableReporter) {
             this.queue.enqueue(event);
             if (this.retryManager.isQueueOverflow(this.queue.size())) {
+                LOGGER.debug(`Send triggered to queue size overflow`);
                 this.sendEvents();
             }
         }
@@ -64,21 +67,26 @@ export class TelemetryReporterImpl implements TelemetryReporter {
     private sendEvents = async (): Promise<void> => {
         try {
             if(!this.queue.size()){
+                LOGGER.debug(`Queue is empty nothing to send`);
                 return;
             }
             const eventsCollected = this.queue.flush();
+
+            LOGGER.debug(`Number of events to send: ${eventsCollected.length}`);
             this.retryManager.clearTimer();
 
             const transformedEvents = this.transformEvents(eventsCollected);
 
             const response = await this.postTelemetry.post(transformedEvents);
 
+            LOGGER.debug(`Number of events successfully sent: ${response.success.length}`);
+            LOGGER.debug(`Number of events failed to send: ${response.failures.length}`);
             this.handlePostTelemetryResponse(response);
 
             this.retryManager.startTimer();
         } catch (err: any) {
             this.disableReporter = true;
-            LOGGER.error(`Error while sending telemetry: ${isError(err) ? err.message : err}`);
+            LOGGER.debug(`Error while sending telemetry: ${isError(err) ? err.message : err}`);
         }
     }
     
@@ -92,6 +100,9 @@ export class TelemetryReporterImpl implements TelemetryReporter {
 
     private handlePostTelemetryResponse = (response: TelemetryPostResponse) => {
         const eventsToBeEnqueued = this.retryManager.eventsToBeEnqueuedAgain(response);
+
         this.queue.concatQueue(eventsToBeEnqueued);
+
+        LOGGER.debug(`Number of failed events enqueuing again: ${eventsToBeEnqueued.length}`);
     }
 }

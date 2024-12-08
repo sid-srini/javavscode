@@ -13,53 +13,31 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 */
-import { Uri } from "vscode";
 import { CacheService } from "../types";
-import { exists, getHashCode, mkdir, readFile, writeFile } from "../utils";
 import { LOGGER } from "../../logger";
+import { globalState } from "../../globalState";
 
-export class CacheServiceImpl implements CacheService {
-
-    private cacheMap = new Map<string, string>();
-    constructor(private cachePath: Uri) { }
-
-    public get = async (key: string): Promise<string | undefined> => {
+class CacheServiceImpl implements CacheService {
+    public get = (key: string): string | undefined => {
         try {
-            const filePath = Uri.joinPath(this.cachePath, `${key}.txt`);
-            const isFileExists = await exists(filePath);
-            if (!isFileExists) {
-                throw new Error("key doesn't exists");
-            }
-            if (this.cacheMap.has(key)) {
-                return this.cacheMap.get(key);
-            }
-            const value = await readFile(filePath);
-            return value;
+            const vscGlobalState = globalState.getExtensionContextInfo().getVscGlobalState();
+            return vscGlobalState.get(key);
         } catch (err) {
             LOGGER.error(`Error while retrieving ${key} from cache: ${(err as Error).message}`);
             return undefined;
         }
     }
 
-    public put = async (key: string, value: string): Promise<boolean> => {
+    public put = (key: string, value: string): boolean => {
         try {
-            const filePath = Uri.joinPath(this.cachePath, `${key}.txt`);
-            const flag = await this.isCacheDirExists();
-            if (!flag) {
-                await mkdir(this.cachePath);
-            }
-            const hash = getHashCode(value);
-            await writeFile(filePath, hash);
-            this.cacheMap.set(key, hash);
-
+            const vscGlobalState = globalState.getExtensionContextInfo().getVscGlobalState();
+            vscGlobalState.update(key, value);
             return true;
         } catch (err) {
             LOGGER.error(`Error while storing ${key} in cache: ${(err as Error).message}`);
             return false;
         }
     }
-
-    public getCachePath = (): Uri => this.cachePath;
-
-    public isCacheDirExists = async (): Promise<boolean> => await exists(this.cachePath);
 }
+
+export const cacheService = new CacheServiceImpl();
