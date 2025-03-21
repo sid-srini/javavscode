@@ -71,5 +71,5 @@ suite("Extension gradle tests", function () {
       !fs.existsSync(mainClass),
       "Class created by compilation: " + mainClass
     );
-  }).timeout(60000);
+  });
 });
