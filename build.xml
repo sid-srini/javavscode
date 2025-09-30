@@ -291,6 +291,15 @@
         </exec>
 
         <antcall target="setup-vsce" inheritAll="true" />
+        <delete includeemptydirs="false">
+            <fileset dir="${basedir}/vscode/node_modules" defaultexcludes="false">
+                <include name="**/.*"/>
+            </fileset>
+            <dirset dir="${basedir}/vscode/node_modules" defaultexcludes="false">
+		<include name="**/.git"/>
+		<include name="**/.github"/>
+            </dirset>
+        </delete>
         <move todir="${basedir}/vscode/node_modules" includeemptydirs="false">
             <fileset dir="${basedir}/vscode/node_modules" casesensitive="false">
                 <include name="**/LICENSE"/>
